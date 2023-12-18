@@ -28,12 +28,15 @@ import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectComma
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.types.StructField
 
+import org.apache.hadoop.fs.Path
+
 trait BackendSettingsApi {
   def supportFileFormatRead(
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): Boolean = false
+      paths: Seq[String],
+      rootPaths: Seq[Path]): Boolean = false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
@@ -111,6 +114,8 @@ trait BackendSettingsApi {
   def staticPartitionWriteOnly(): Boolean = false
 
   def requiredInputFilePaths(): Boolean = false
+
+  def requiredRootPaths(): Boolean = false
 
   def enableBloomFilterAggFallbackRule(): Boolean = true
 }

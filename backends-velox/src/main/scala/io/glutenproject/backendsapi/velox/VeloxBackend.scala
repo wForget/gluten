@@ -22,6 +22,7 @@ import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -32,6 +33,8 @@ import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationComm
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+import org.apache.hadoop.fs.Path
 
 import scala.util.control.Breaks.breakable
 
@@ -53,9 +56,10 @@ object VeloxBackend {
   val BACKEND_NAME = "velox"
 }
 
-object BackendSettings extends BackendSettingsApi {
+object BackendSettings extends BackendSettingsApi with Logging {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
+  val SUPPORTED_FILE_SYSTEM = Set("file", "hdfs", "s3a")
 
   val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
   val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
@@ -64,7 +68,8 @@ object BackendSettings extends BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): Boolean = {
+      paths: Seq[String],
+      rootPaths: Seq[Path]): Boolean = {
     // Validate if all types are supported.
     def validateTypes: Boolean = {
       // Collect unsupported types.
@@ -83,13 +88,21 @@ object BackendSettings extends BackendSettingsApi {
           "ArrayType as Value type in MapType"
       }
       for (unsupportedDataType <- unsupportedDataTypes) {
-        // scalastyle:off println
-        println(
+        logWarning(
           s"Validation failed for ${this.getClass.toString}" +
             s" due to: data type $unsupportedDataType. in file schema. ")
-        // scalastyle:on println
       }
       unsupportedDataTypes.isEmpty
+    }
+
+    // check if supported file system
+    val unsupportedPath = rootPaths.find(!isSupportedFileSystem(_))
+    logInfo("check paths: " + rootPaths.map(_.toString).mkString(","))
+    if (unsupportedPath.isDefined) {
+      logWarning(
+        s"Validation failed for ${this.getClass.toString}" +
+          s"  due to: path[$unsupportedPath] is unsupported file system.")
+      return false
     }
 
     format match {
@@ -99,15 +112,18 @@ object BackendSettings extends BackendSettingsApi {
         val unsupportedDataTypes =
           fields.map(_.dataType).collect { case _: TimestampType => "TimestampType" }
         for (unsupportedDataType <- unsupportedDataTypes) {
-          // scalastyle:off println
-          println(
+          logWarning(
             s"Validation failed for ${this.getClass.toString}" +
               s" due to: data type $unsupportedDataType. in file schema. ")
-          // scalastyle:on println
         }
         unsupportedDataTypes.isEmpty && validateTypes
       case _ => false
     }
+  }
+
+  private def isSupportedFileSystem(path: Path): Boolean = {
+    val schema = Option(path.toUri.getScheme).getOrElse("file")
+    SUPPORTED_FILE_SYSTEM.contains(schema)
   }
 
   override def supportExpandExec(): Boolean = true
@@ -307,4 +323,6 @@ object BackendSettings extends BackendSettingsApi {
   override def staticPartitionWriteOnly(): Boolean = true
 
   override def allowDecimalArithmetic: Boolean = SQLConf.get.decimalOperationsAllowPrecisionLoss
+
+  override def requiredRootPaths(): Boolean = true
 }
