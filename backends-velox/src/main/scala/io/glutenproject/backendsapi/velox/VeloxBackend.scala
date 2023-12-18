@@ -97,7 +97,6 @@ object BackendSettings extends BackendSettingsApi with Logging {
 
     // check if supported file system
     val unsupportedPath = rootPaths.find(!isSupportedFileSystem(_))
-    logInfo("check paths: " + rootPaths.map(_.toString).mkString(","))
     if (unsupportedPath.isDefined) {
       logWarning(
         s"Validation failed for ${this.getClass.toString}" +
