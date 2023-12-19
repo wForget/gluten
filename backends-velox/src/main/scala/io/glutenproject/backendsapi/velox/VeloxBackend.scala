@@ -61,6 +61,13 @@ object VeloxBackend {
 object BackendSettings extends BackendSettingsApi with Logging {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
+
+  /**
+   * Supported file schemes for Velox backend.
+   *
+   * Note: Need to turn on the required file systems when compiling velox to obtain support. Refer:
+   * https://github.com/facebookincubator/velox/blob/fa6de06c826084ce5d938c71b7450c59204c864d/CMakeLists.txt#L93-L96
+   */
   val SUPPORTED_FILE_SCHEMES = Set(
     // local
     "file",
