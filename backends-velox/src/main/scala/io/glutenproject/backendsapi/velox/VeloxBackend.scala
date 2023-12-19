@@ -36,6 +36,8 @@ import org.apache.spark.sql.types._
 
 import org.apache.hadoop.fs.Path
 
+import java.util.Locale
+
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
@@ -59,7 +61,24 @@ object VeloxBackend {
 object BackendSettings extends BackendSettingsApi with Logging {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
-  val SUPPORTED_FILE_SYSTEM = Set("file", "hdfs", "s3a")
+  val SUPPORTED_FILE_SCHEMES = Set(
+    // local
+    "file",
+    // hdfs
+    "hdfs",
+    // s3
+    "s3",
+    "s3a",
+    "s3n",
+    "oss",
+    "oss",
+    "cosn",
+    // gcs
+    "gs",
+    // abfs
+    "abfs",
+    "abfss"
+  )
 
   val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
   val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
@@ -121,8 +140,8 @@ object BackendSettings extends BackendSettingsApi with Logging {
   }
 
   private def isSupportedFileSystem(path: Path): Boolean = {
-    val schema = Option(path.toUri.getScheme).getOrElse("file")
-    SUPPORTED_FILE_SYSTEM.contains(schema)
+    val scheme = Option(path.toUri.getScheme).getOrElse("file").toLowerCase(Locale.ROOT)
+    SUPPORTED_FILE_SCHEMES.contains(scheme)
   }
 
   override def supportExpandExec(): Boolean = true
