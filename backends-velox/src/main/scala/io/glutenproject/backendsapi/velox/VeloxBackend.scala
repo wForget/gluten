@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
+import io.glutenproject.utils.VeloxFileSystemUtils
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
@@ -123,12 +124,13 @@ object BackendSettings extends BackendSettingsApi with Logging {
       unsupportedDataTypes.isEmpty
     }
 
-    // check if supported file system
-    val unsupportedPath = rootPaths.find(!isSupportedFileSystem(_))
-    if (unsupportedPath.isDefined) {
+    // Check if supported file system. Since the same DataSource is mostly the same filesystem,
+    // so we only check head path.
+    val checkPaths = rootPaths.map(_.toString).headOption
+    if (checkPaths.isDefined && !VeloxFileSystemUtils.supportedFilePaths(checkPaths.toArray)) {
       logWarning(
         s"Validation failed for ${this.getClass.toString}" +
-          s"  due to: path[$unsupportedPath] is unsupported file system.")
+          "  due to: rootPaths is unsupported file system.")
       return false
     }
 
