@@ -58,7 +58,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       p: SparkPlan,
       fallbackNodeToReason: mutable.HashMap[String, String]
   ): Unit = {
-    p.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
+    p.getTagValue(FALLBACK_REASON_TAG) match {
       case Some(reason) => addFallbackNodeWithReason(p, reason, fallbackNodeToReason)
       case _ =>
         // If the SparkPlan does not have fallback reason, then there are two options:
