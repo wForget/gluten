@@ -16,12 +16,15 @@
  */
 package org.apache.gluten
 
-import org.apache.spark.sql.execution.{SparkPlan, ColumnarWriteFilesExec}
+import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, SparkPlan}
 
 trait GlutenColumnarWriteTestSupport {
 
   def checkWriteFilesAndGetChild(sparkPlan: SparkPlan): SparkPlan = {
     assert(sparkPlan.isInstanceOf[ColumnarWriteFilesExec])
-    sparkPlan.asInstanceOf[ColumnarWriteFilesExec].child
+    val columnarWriteFilesExec = sparkPlan.asInstanceOf[ColumnarWriteFilesExec]
+    assert(FallbackTags.get(columnarWriteFilesExec.right) == FallbackTag.Ignore())
+    columnarWriteFilesExec.child
   }
 }

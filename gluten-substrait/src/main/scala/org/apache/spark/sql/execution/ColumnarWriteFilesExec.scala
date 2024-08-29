@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
 import org.apache.gluten.extension.columnar.transition.Convention.{KnownRowType, RowType}
 import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
@@ -139,6 +140,7 @@ object ColumnarWriteFilesExec {
         bucketSpec,
         options,
         staticPartitions)
+    FallbackTags.addRecursively(right, FallbackTag.Ignore())
 
     BackendsApiManager.getSparkPlanExecApiInstance.createColumnarWriteFilesExec(
       child,

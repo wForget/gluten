@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.events.GlutenPlanFallbackEvent
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
@@ -44,11 +44,18 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     plan
   }
 
-  private def logFallbackReason(logLevel: String, nodeName: String, reason: String): Unit = {
-    val executionIdInfo = Option(spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY))
-      .map(id => s"[QueryId=$id]")
-      .getOrElse("")
-    logOnLevel(logLevel, s"Validation failed for plan: $nodeName$executionIdInfo, due to: $reason.")
+  private def logFallbackReason(logLevel: String, nodeName: String, tag: FallbackTag): Unit = {
+    tag match {
+      case FallbackTag.Ignore() => // ignore
+      case _ =>
+        val executionIdInfo =
+          Option(spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY))
+            .map(id => s"[QueryId=$id]")
+            .getOrElse("")
+        logOnLevel(
+          logLevel,
+          s"Validation failed for plan: $nodeName$executionIdInfo, due to: ${tag.reason()}.")
+    }
   }
 
   private def printFallbackReason(plan: SparkPlan): Unit = {
@@ -57,7 +64,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
       case _: GlutenPlan => // ignore
       case p: SparkPlan if FallbackTags.nonEmpty(p) =>
         val tag = FallbackTags.get(p)
-        logFallbackReason(validationLogLevel, p.nodeName, tag.reason())
+        logFallbackReason(validationLogLevel, p.nodeName, tag)
         // With in next round stage in AQE, the physical plan would be a new instance that
         // can not preserve the tag, so we need to set the fallback reason to logical plan.
         // Then we can be aware of the fallback reason for the whole plan.

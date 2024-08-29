@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
-import org.apache.gluten.extension.columnar.FallbackTags.EncodeFallbackTagImplicits
+import org.apache.gluten.extension.columnar.FallbackTags.{EncodeFallbackTagImplicits, FALLBACK_REASON_IGNORE}
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -62,6 +62,11 @@ object FallbackTag {
    */
   case class Exclusive(override val reason: String) extends FallbackTag
 
+  /** A tag that indicates the reason of fallback can be ignored. */
+  case class Ignore() extends FallbackTag {
+    override def reason: String = FALLBACK_REASON_IGNORE
+  }
+
   trait Converter[T] {
     def from(obj: T): Option[FallbackTag]
   }
@@ -87,6 +92,8 @@ object FallbackTag {
 object FallbackTags {
   val TAG: TreeNodeTag[FallbackTag] =
     TreeNodeTag[FallbackTag]("org.apache.gluten.FallbackTag")
+
+  val FALLBACK_REASON_IGNORE = "__FALLBACK_REASON_IGNORE__"
 
   val DEBUG = false
 
@@ -121,6 +128,10 @@ object FallbackTags {
           exclusive
         case (exclusive: FallbackTag.Exclusive, _) =>
           exclusive
+        case (_, ignore: FallbackTag.Ignore) =>
+          ignore
+        case (ignore: FallbackTag.Ignore, _) =>
+          ignore
         case (l: FallbackTag.Appendable, r: FallbackTag.Appendable) =>
           FallbackTag.Appendable(s"${l.reason}; ${r.reason}")
       }

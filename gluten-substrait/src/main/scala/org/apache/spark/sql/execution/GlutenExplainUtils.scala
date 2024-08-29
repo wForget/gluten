@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.AnalysisException
@@ -59,16 +59,21 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       p: SparkPlan,
       fallbackNodeToReason: mutable.HashMap[String, String]
   ): Unit = {
-    p.logicalLink.flatMap(FallbackTags.getOption) match {
-      case Some(tag) => addFallbackNodeWithReason(p, tag.reason(), fallbackNodeToReason)
-      case _ =>
-        // If the SparkPlan does not have fallback reason, then there are two options:
-        // 1. Gluten ignore that plan and it's a kind of fallback
-        // 2. Gluten does not support it without the fallback reason
-        addFallbackNodeWithReason(
-          p,
-          "Gluten does not touch it or does not support it",
-          fallbackNodeToReason)
+    // Plan with Ignored Hint may not have logicalLink, so we ignore it.
+    val hasIgnoredHint = FallbackTags.getOption(p).contains(FallbackTag.Ignore())
+    if (!hasIgnoredHint) {
+      p.logicalLink.flatMap(FallbackTags.getOption) match {
+        case Some(FallbackTag.Ignore()) => // Ignore
+        case Some(tag) => addFallbackNodeWithReason(p, tag.reason(), fallbackNodeToReason)
+        case _ =>
+          // If the SparkPlan does not have fallback reason, then there are two options:
+          // 1. Gluten ignore that plan and it's a kind of fallback
+          // 2. Gluten does not support it without the fallback reason
+          addFallbackNodeWithReason(
+            p,
+            "Gluten does not touch it or does not support it",
+            fallbackNodeToReason)
+      }
     }
   }
 
