@@ -39,6 +39,10 @@ on:
         description: 'Checkout repo ref to build'
         required: true
         default: 'main'
+      extra_build_args:
+        description: 'Extra build args, like: --velox_repo=xxx --velox_branch=xxx'
+        required: false
+        default: ''
 
 jobs:
   build-native-lib:
@@ -60,7 +64,7 @@ jobs:
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache
-            bash dev/ci-velox-buildstatic-centos-7.sh
+            bash dev/ci-velox-buildstatic-centos-7.sh ${{ github.event.inputs.extra_build_args }}
             ccache -s
             mkdir -p /work/.m2/repository/org/apache/arrow/
             cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
