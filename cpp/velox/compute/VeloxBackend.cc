@@ -148,7 +148,11 @@ void VeloxBackend::init(
   velox::filesystems::registerLocalFileSystem();
 
 #ifdef ENABLE_HDFS
+  std::string_view hdfsExtraSupportedSchemes{backendConf_->get<std::string_view>(kHdfsExtraSupportedSchemes, kHdfsExtraSupportedSchemesDefault)};
   velox::filesystems::registerHdfsFileSystem();
+  if (!hdfsExtraSupportedSchemes.empty()) {
+    velox::filesystems::setHdfsExtraSupportedSchemes(hdfsExtraSupportedSchemes);
+  }
 #endif
 #ifdef ENABLE_S3
   velox::filesystems::registerS3FileSystem();
